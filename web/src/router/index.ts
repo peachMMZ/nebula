@@ -20,24 +20,27 @@ const router = createRouter({
           name: 'home',
           component: () => import('@/view/home/index.vue'),
         },
+        {
+          path: '/apps',
+          name: 'apps',
+          component: () => import('@/view/app/index.vue'),
+        }
       ],
     },
   ],
 })
 
 // 路由守卫
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from) => {
   const authStore = useAuthStore()
   const isAuthenticated = authStore.isAuthenticated()
 
   if (to.meta.requiresAuth && !isAuthenticated) {
     // 需要登录但未登录，跳转到登录页
-    next('/login')
+    return '/login'
   } else if (to.path === '/login' && isAuthenticated) {
     // 已登录访问登录页，跳转到首页
-    next('/')
-  } else {
-    next()
+    return '/'
   }
 })
 

@@ -16,7 +16,17 @@ func NewAppHandler(service *app.AppService) *AppHandler {
 }
 
 func (h *AppHandler) List(c *gin.Context) {
-	apps, err := h.service.List()
+	params := make(map[string]any)
+
+	// 从查询参数中获取过滤条件
+	if name := c.Query("name"); name != "" {
+		params["name"] = name
+	}
+	if description := c.Query("description"); description != "" {
+		params["description"] = description
+	}
+
+	apps, err := h.service.List(params)
 	if err != nil {
 		response.FailServer(c, err.Error())
 		return
