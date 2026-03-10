@@ -1,0 +1,25 @@
+server:
+  address: ":9050"
+  mode: "dev"  # dev or prod
+
+database:
+  dsn: "nebula.db"
+
+storage:
+  type: "local"  # local, oss, s3
+  basePath: "./uploads"
+  baseUrl: "http://localhost:9050/files"
+
+jwt:
+  secret: "dev-secret-key-change-in-production"
+  accessTokenDuration: 7200    # 2 hours in seconds
+  refreshTokenDuration: 604800  # 7 days in seconds
+
+frontend:
+  enabled: false  # Will be set to true in prod mode
+  path: "./web/dist"
+
+# 管理员账号配置
+admin:
+  username: "admin"
+  password: "123456"  # ⚠️ 生产环境请务必修改密码！

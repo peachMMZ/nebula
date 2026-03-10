@@ -1,0 +1,25 @@
+server:
+  address: ":9050"
+  mode: "dev"
+
+database:
+  dsn: "nebula.db"
+
+storage:
+  type: "local"
+  basePath: "./uploads"
+  baseUrl: "http://localhost:9050/files"
+
+jwt:
+  secret: "dev-secret-key"
+  accessTokenDuration: 7200
+  refreshTokenDuration: 604800
+
+frontend:
+  enabled: false
+  path: "./web/dist"
+
+# 开发环境管理员账号
+admin:
+  username: "admin"
+  password: "123456"
