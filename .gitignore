@@ -1,0 +1,42 @@
+# Go build output
+dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Go module files
+go.sum
+
+# Environment variables
+.env
+.env.dev
+.env.prod
+.env.example
+
+# Database files
+*.db
+
+# IDE and editor files
+.idea/
+.vscode/
+.trae/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+
+# database files
+nebula.db
