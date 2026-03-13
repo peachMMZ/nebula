@@ -3,7 +3,6 @@
 
 server:
   address: ":9050"
-  mode: "dev"  # dev 或 prod
 
 database:
   dsn: "nebula.db"
