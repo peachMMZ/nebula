@@ -40,9 +40,20 @@ func (s *AppService) Get(id string) (*App, error) {
 }
 
 func (s *AppService) Create(app App) error {
-	// 生成唯一的短ID作为应用ID
+	// 1. 检查 name 是否已存在
+	var existingApp App
+	err := s.db.Where("name = ?", app.Name).First(&existingApp).Error
+	if err == nil {
+		// 找到了重复的 name
+		return gorm.ErrDuplicatedKey
+	}
+	if err != gorm.ErrRecordNotFound {
+		// 其他数据库错误
+		return err
+	}
+
+	// 2. 生成唯一的短ID作为应用ID
 	var appExists App
-	var err error
 	var id string
 
 	for {
@@ -68,6 +79,20 @@ func (s *AppService) Create(app App) error {
 }
 
 func (s *AppService) Update(id string, data map[string]any) error {
+	// 如果更新 name，检查是否与其他应用重复
+	if name, ok := data["name"]; ok {
+		var existingApp App
+		err := s.db.Where("name = ? AND id != ?", name, id).First(&existingApp).Error
+		if err == nil {
+			// 找到了重复的 name
+			return gorm.ErrDuplicatedKey
+		}
+		if err != gorm.ErrRecordNotFound {
+			// 其他数据库错误
+			return err
+		}
+	}
+
 	return s.db.Model(&App{}).Where("id = ?", id).Updates(data).Error
 }
 

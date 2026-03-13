@@ -1,0 +1,78 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+          cache: true
+
+      - name: Build backend
+        run: |
+          CGO_ENABLED=1 go build -ldflags="-s -w" -o nebula-server ./cmd/nebula-server
+
+      - name: Prepare release package
+        run: |
+          mkdir -p release
+          cp nebula-server release/
+          cp config.yaml release/config.example.yaml
+          [ -f README.md ] && cp README.md release/
+          
+          # 创建启动脚本
+          cat > release/start.sh << 'EOF'
+          #!/bin/bash
+          [ ! -f config.yaml ] && cp config.example.yaml config.yaml
+          mkdir -p uploads logs
+          ./nebula-server
+          EOF
+          
+          chmod +x release/start.sh release/nebula-server
+          
+          # 打包
+          tar -czf nebula-linux-amd64.tar.gz -C release .
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: nebula-linux-amd64.tar.gz
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+            ghcr.io/${{ github.repository }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+

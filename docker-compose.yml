@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  nebula:
+    image: nebula:latest
+    container_name: nebula-server
+    restart: unless-stopped
+    ports:
+      - "9050:9050"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./config.yaml:/app/config.yaml
+    environment:
+      - SERVER_ADDRESS=:9050
+      - SERVER_MODE=prod
+      - DATABASE_DSN=/app/data/nebula.db
+      - STORAGE_TYPE=local
+      - STORAGE_BASE_PATH=/app/uploads
+      - STORAGE_BASE_URL=http://localhost:9050/files
+      - JWT_SECRET=${JWT_SECRET:-change-this-secret-in-production}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-CHANGE_THIS_PASSWORD}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9050/api/check-update"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - nebula-network
+
+networks:
+  nebula-network:
+    driver: bridge

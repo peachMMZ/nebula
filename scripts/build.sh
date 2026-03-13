@@ -2,15 +2,21 @@
 set -e
 BINARY=nebula-server
 OUT_DIR=dist
-WEB_DIR=web
 
-echo "Building frontend..."
-(cd "$WEB_DIR" && pnpm run build)
+echo "Building Nebula Backend for production..."
 
 [[ -d "$OUT_DIR" ]] || mkdir -p "$OUT_DIR"
 SUFFIX=""
 [[ "$GOOS" == "windows" ]] && SUFFIX=".exe"
 
 echo "Building $BINARY..."
-go build -o "$OUT_DIR/${BINARY}${SUFFIX}" ./cmd/nebula-server/
-echo "Build done: $OUT_DIR/${BINARY}${SUFFIX}"
+go build -ldflags="-s -w" -o "$OUT_DIR/${BINARY}${SUFFIX}" ./cmd/nebula-server/
+
+echo ""
+echo "========================================"
+echo "Build completed successfully!"
+echo "========================================"
+echo "Output: $OUT_DIR/${BINARY}${SUFFIX}"
+echo ""
+echo "To run:"
+echo "  SERVER_MODE=prod ./$OUT_DIR/${BINARY}${SUFFIX}"

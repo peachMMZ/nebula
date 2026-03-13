@@ -1,14 +1,11 @@
 @echo off
-echo Starting Nebula development environment...
+echo Starting Nebula Backend (Dev Mode)...
 
 echo.
-echo Starting backend server (dev mode)...
-start "Nebula Backend" cmd /c "set SERVER_MODE=dev && go run ./cmd/nebula-server/main.go"
-
-echo Waiting for backend to start...
-timeout /t 3 /nobreak >nul
-
+echo Starting backend server...
+echo API will be available at http://localhost:9050/api
 echo.
-echo Starting frontend (Vite dev server)...
-cd web
-pnpm dev
+
+set SERVER_MODE=dev
+go run ./cmd/nebula-server/main.go
+

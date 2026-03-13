@@ -9,12 +9,6 @@ dist/
 # Go module files
 go.sum
 
-# Environment variables
-.env
-.env.dev
-.env.prod
-.env.example
-
 # Database files
 *.db
 

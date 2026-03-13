@@ -32,57 +32,37 @@ func RegisterRoutes(r *gin.Engine, db *gorm.DB, stor storage.Storage, jwtService
 		}
 
 		// 需要认证的路由
+		// 更新检查（公开）
+		api.GET("/update/check", h.CheckUpdate)
+
+		// 认证保护的路由
 		authRequired := api.Group("")
 		authRequired.Use(auth.JWTMiddleware(jwtService))
-		{
-			// 用户相关
-			authRequired.GET("/auth/profile", authHandler.GetProfile)
-			authRequired.POST("/auth/change-password", authHandler.ChangePassword)
-		}
-
-		// 更新检查（公开）
-		api.GET("/check-update", h.CheckUpdate)
 
 		// 应用管理（需要认证）
-		appGroup := api.Group("/apps")
-		appGroup.Use(auth.JWTMiddleware(jwtService))
 		{
-			appGroup.GET("", appHandler.List)
-			appGroup.POST("", appHandler.Create)
-			appGroup.GET("/:id", appHandler.Get)
-			appGroup.PUT("/:id", appHandler.Update)
-			appGroup.DELETE("/:id", appHandler.Delete)
-
-			// 应用相关的版本
-			appGroup.GET("/:id/releases", releaseHandler.ListByApp)
-			appGroup.GET("/:id/releases/latest", releaseHandler.GetLatest)
+			authRequired.GET("/apps", appHandler.List)
+			authRequired.POST("/apps", appHandler.Create)
+			authRequired.POST("/apps/:name", appHandler.Update)
+			authRequired.DELETE("/apps/:name", appHandler.Delete)
 		}
 
-		// 版本管理（需要认证）
-		releaseGroup := api.Group("/releases")
-		releaseGroup.Use(auth.JWTMiddleware(jwtService))
+		// GitHub 风格的 releases 和 assets 路由
 		{
-			releaseGroup.GET("", releaseHandler.List)
-			releaseGroup.POST("", releaseHandler.Create)
-			releaseGroup.GET("/:id", releaseHandler.Get)
-			releaseGroup.PUT("/:id", releaseHandler.Update)
-			releaseGroup.DELETE("/:id", releaseHandler.Delete)
+			// 获取应用的版本列表
+			authRequired.GET("/:name/releases", releaseHandler.ListByApp)
+			// 获取应用的最新版本
+			authRequired.GET("/:name/releases/latest", releaseHandler.GetLatest)
+			// 下载指定版本的资源文件 (GitHub 风格，包含 platform 和 arch)
+			authRequired.GET("/:name/releases/download/:tag/:platformArch/:filename", assetHandler.DownloadByTag)
 
-			// 版本相关的资源
-			releaseGroup.GET("/:id/assets", assetHandler.ListByRelease)
-			releaseGroup.POST("/:id/assets/upload", assetHandler.Upload)
-		}
+			// 创建、更新、删除版本（需要认证）
+			authRequired.POST("/:name/releases", releaseHandler.Create)
+			authRequired.PUT("/:name/releases/:tag", releaseHandler.Update)
+			authRequired.DELETE("/:name/releases/:tag", releaseHandler.Delete)
 
-		// 资源管理（需要认证）
-		assetGroup := api.Group("/assets")
-		assetGroup.Use(auth.JWTMiddleware(jwtService))
-		{
-			assetGroup.GET("", assetHandler.List)
-			assetGroup.GET("/:id", assetHandler.Get)
-			assetGroup.POST("", assetHandler.Create)
-			assetGroup.PUT("/:id", assetHandler.Update)
-			assetGroup.DELETE("/:id", assetHandler.Delete)
-			assetGroup.GET("/:id/download", assetHandler.Download)
+			// 创建资源文件（上传文件并创建记录，原子操作）
+			authRequired.POST("/:name/releases/:tag/assets", assetHandler.Create)
 		}
 	}
 }

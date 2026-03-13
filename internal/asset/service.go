@@ -38,6 +38,19 @@ func (s *AssetService) ListByRelease(releaseID uint) ([]Asset, error) {
 	return assets, err
 }
 
+// ListByAppAndVersion 根据应用名称和版本标签获取资源列表 (GitHub API 风格)
+func (s *AssetService) ListByAppAndVersion(appName, version string) ([]Asset, error) {
+	var assets []Asset
+	// 联表查询: assets -> releases -> apps
+	err := s.db.Table("assets").
+		Joins("JOIN releases ON assets.release_id = releases.id").
+		Joins("JOIN apps ON releases.app_id = apps.id").
+		Where("apps.name = ? AND releases.tag = ?", appName, version).
+		Select("assets.*").
+		Find(&assets).Error
+	return assets, err
+}
+
 // Get 获取单个资源详情
 func (s *AssetService) Get(id uint) (*Asset, error) {
 	var asset Asset
@@ -67,14 +80,23 @@ func (s *AssetService) GetByReleaseAndPlatform(releaseID uint, platform, arch st
 
 // Upload 上传文件并创建资源记录
 func (s *AssetService) Upload(releaseID uint, platform, arch string, file *multipart.FileHeader) (*Asset, error) {
-	// 检查 Release 是否存在
-	var count int64
-	err := s.db.Table("releases").Where("id = ?", releaseID).Count(&count).Error
-	if err != nil {
-		return nil, err
+	// 检查 Release 是否存在并获取 tag 和 app_name
+	var release struct {
+		ID      uint   `gorm:"column:id"`
+		Tag     string `gorm:"column:tag"`
+		AppID   string `gorm:"column:app_id"`
+		AppName string `gorm:"column:name"`
 	}
-	if count == 0 {
-		return nil, errors.New("release not found")
+	err := s.db.Table("releases").
+		Joins("JOIN apps ON releases.app_id = apps.id").
+		Where("releases.id = ?", releaseID).
+		Select("releases.id, releases.tag, releases.app_id, apps.name").
+		First(&release).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("release not found")
+		}
+		return nil, err
 	}
 
 	// 检查是否已存在相同平台和架构的资源
@@ -110,8 +132,8 @@ func (s *AssetService) Upload(releaseID uint, platform, arch string, file *multi
 	}
 	defer src.Close()
 
-	// 构建存储路径: releases/{releaseID}/{platform}-{arch}/{filename}
-	storagePath := fmt.Sprintf("releases/%d/%s-%s/%s", releaseID, platform, arch, file.Filename)
+	// 构建存储路径: releases/{tag}/{platform}-{arch}/{filename}
+	storagePath := fmt.Sprintf("releases/%s/%s-%s/%s", release.Tag, platform, arch, file.Filename)
 
 	// 保存文件
 	savedPath, err := s.storage.Save(storagePath, src)
@@ -119,8 +141,8 @@ func (s *AssetService) Upload(releaseID uint, platform, arch string, file *multi
 		return nil, fmt.Errorf("failed to save file: %w", err)
 	}
 
-	// 获取文件访问 URL
-	url := s.storage.GetURL(savedPath)
+	// 构建 GitHub 风格的下载 URL: /api/:name/releases/download/:tag/:platform-:arch/:filename
+	url := fmt.Sprintf("/api/%s/releases/download/%s/%s-%s/%s", release.AppName, release.Tag, platform, arch, file.Filename)
 
 	// 创建数据库记录
 	asset := Asset{
@@ -142,99 +164,63 @@ func (s *AssetService) Upload(releaseID uint, platform, arch string, file *multi
 	return &asset, nil
 }
 
-// Create 创建资源记录（用于外部URL）
-func (s *AssetService) Create(asset Asset) error {
-	// 检查 Release 是否存在
-	var count int64
-	err := s.db.Table("releases").Where("id = ?", asset.ReleaseID).Count(&count).Error
-	if err != nil {
-		return err
+// CreateByTag 通过应用名称和标签创建资源（上传文件并创建记录，原子操作）
+func (s *AssetService) CreateByTag(appName, tag, platform, arch string, file *multipart.FileHeader) (*Asset, error) {
+	// 通过 app_name 和 tag 查找 release_id
+	var release struct {
+		ID uint `gorm:"column:id"`
 	}
-	if count == 0 {
-		return errors.New("release not found")
-	}
+	err := s.db.Table("releases").
+		Joins("JOIN apps ON releases.app_id = apps.id").
+		Where("apps.name = ? AND releases.tag = ?", appName, tag).
+		Select("releases.id").
+		First(&release).Error
 
-	// 检查是否已存在相同平台和架构的资源
-	err = s.db.Where("release_id = ? AND platform = ? AND arch = ?", asset.ReleaseID, asset.Platform, asset.Arch).
-		First(&Asset{}).Error
-	if err == nil {
-		return errors.New("asset already exists for this platform and architecture")
-	}
-	if !errors.Is(err, gorm.ErrRecordNotFound) {
-		return err
-	}
-
-	return s.db.Create(&asset).Error
-}
-
-// Update 更新资源信息（不包括文件）
-func (s *AssetService) Update(id uint, data map[string]any) error {
-	// 检查资源是否存在
-	var asset Asset
-	err := s.db.First(&asset, id).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("asset not found")
+			return nil, errors.New("release not found")
 		}
-		return err
+		return nil, err
 	}
 
-	// 如果更新平台或架构，检查是否会造成重复
-	newPlatform, hasPlatform := data["platform"].(string)
-	newArch, hasArch := data["arch"].(string)
-
-	if hasPlatform || hasArch {
-		checkPlatform := asset.Platform
-		checkArch := asset.Arch
-		if hasPlatform {
-			checkPlatform = newPlatform
-		}
-		if hasArch {
-			checkArch = newArch
-		}
-
-		err := s.db.Where("release_id = ? AND platform = ? AND arch = ? AND id != ?",
-			asset.ReleaseID, checkPlatform, checkArch, id).
-			First(&Asset{}).Error
-		if err == nil {
-			return errors.New("asset already exists for this platform and architecture")
-		}
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return err
-		}
-	}
-
-	return s.db.Model(&Asset{}).Where("id = ?", id).Updates(data).Error
-}
-
-// Delete 删除资源（包括文件）
-func (s *AssetService) Delete(id uint) error {
-	// 获取资源信息
-	var asset Asset
-	err := s.db.First(&asset, id).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("asset not found")
-		}
-		return err
-	}
-
-	// 删除存储的文件
-	if asset.StoragePath != "" {
-		if err := s.storage.Delete(asset.StoragePath); err != nil {
-			// 记录错误但继续删除数据库记录
-			// TODO: 添加日志
-		}
-	}
-
-	// 删除数据库记录
-	return s.db.Delete(&Asset{}, id).Error
+	// 调用 Upload 方法完成文件上传和记录创建
+	return s.Upload(release.ID, platform, arch, file)
 }
 
 // GetStoragePath 获取资源的存储路径
 func (s *AssetService) GetStoragePath(id uint) (string, error) {
 	var asset Asset
 	err := s.db.First(&asset, id).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", errors.New("asset not found")
+		}
+		return "", err
+	}
+
+	if asset.StoragePath == "" {
+		return "", errors.New("storage path not available")
+	}
+
+	// 如果是本地存储，返回完整路径
+	if localStorage, ok := s.storage.(*storage.LocalStorage); ok {
+		return localStorage.GetFullPath(asset.StoragePath), nil
+	}
+
+	return asset.StoragePath, nil
+}
+
+// GetStoragePathByTag 通过 app_name、tag、platformArch 和 filename 获取资源的存储路径 (GitHub API 风格)
+func (s *AssetService) GetStoragePathByTag(appName, tag, platformArch, filename string) (string, error) {
+	// 从 platformArch 中解析 platform 和 arch (格式: windows-amd64)
+	// 但实际上我们可以直接通过 storagePath 匹配,因为存储路径已经包含了这些信息
+	// 构建预期的存储路径: releases/{tag}/{platformArch}/{filename}
+	expectedPath := fmt.Sprintf("releases/%s/%s/%s", tag, platformArch, filename)
+
+	var asset Asset
+	// 通过存储路径查找资源
+	err := s.db.Where("storage_path = ?", expectedPath).First(&asset).Error
+
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return "", errors.New("asset not found")

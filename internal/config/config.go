@@ -26,10 +26,6 @@ type Config struct {
 		AccessTokenDuration  int    `yaml:"accessTokenDuration"`  // 秒
 		RefreshTokenDuration int    `yaml:"refreshTokenDuration"` // 秒
 	} `yaml:"jwt"`
-	Frontend struct {
-		Enabled bool   `yaml:"enabled"` // 是否启用前端静态资源服务
-		Path    string `yaml:"path"`    // 前端静态资源路径
-	} `yaml:"frontend"`
 	Admin struct {
 		Username string `yaml:"username"` // 管理员用户名
 		Password string `yaml:"password"` // 管理员密码
@@ -37,30 +33,22 @@ type Config struct {
 }
 
 func Load() *Config {
-	// 确定配置文件路径
+	// 1. 先加载默认配置
+	config := loadDefaults()
+
+	// 2. 尝试从配置文件加载
 	configFile := getConfigFile()
-
-	// 读取配置文件
-	data, err := os.ReadFile(configFile)
-	if err != nil {
-		fmt.Printf("Warning: failed to read config file %s: %v, using defaults\n", configFile, err)
-		return loadDefaults()
+	if configFile != "" {
+		data, err := os.ReadFile(configFile)
+		if err == nil {
+			if err := yaml.Unmarshal(data, config); err != nil {
+				fmt.Printf("Warning: failed to parse config file %s: %v, using defaults\n", configFile, err)
+			}
+		}
 	}
 
-	// 解析 YAML
-	config := &Config{}
-	if err := yaml.Unmarshal(data, config); err != nil {
-		fmt.Printf("Warning: failed to parse config file %s: %v, using defaults\n", configFile, err)
-		return loadDefaults()
-	}
-
-	// 环境变量覆盖
+	// 3. 环境变量覆盖（优先级最高）
 	applyEnvOverrides(config)
-
-	// 自动设置 frontend.enabled（生产模式才启用）
-	if config.Server.Mode == "prod" && !config.Frontend.Enabled {
-		config.Frontend.Enabled = true
-	}
 
 	return config
 }
@@ -68,27 +56,17 @@ func Load() *Config {
 func getConfigFile() string {
 	// 1. 优先使用环境变量指定的配置文件
 	if configFile := os.Getenv("CONFIG_FILE"); configFile != "" {
-		return configFile
+		if _, err := os.Stat(configFile); err == nil {
+			return configFile
+		}
 	}
 
-	// 2. 根据 SERVER_MODE 选择配置文件
-	mode := os.Getenv("SERVER_MODE")
-	if mode == "" {
-		mode = "dev"
-	}
-
-	// 检查 config.{mode}.yaml
-	modeConfig := fmt.Sprintf("config.%s.yaml", mode)
-	if _, err := os.Stat(modeConfig); err == nil {
-		return modeConfig
-	}
-
-	// 3. 使用默认 config.yaml
+	// 2. 使用默认 config.yaml
 	if _, err := os.Stat("config.yaml"); err == nil {
 		return "config.yaml"
 	}
 
-	// 4. 都不存在，使用默认配置
+	// 3. 不存在配置文件，使用代码默认值
 	return ""
 }
 
@@ -103,8 +81,6 @@ func loadDefaults() *Config {
 	config.JWT.Secret = "dev-secret-key-change-in-production"
 	config.JWT.AccessTokenDuration = 7200    // 2 hours
 	config.JWT.RefreshTokenDuration = 604800 // 7 days
-	config.Frontend.Enabled = false
-	config.Frontend.Path = "./web/dist"
 	config.Admin.Username = "admin"
 	config.Admin.Password = "admin123" // 默认密码，生产环境必须修改
 	return config
@@ -131,9 +107,6 @@ func applyEnvOverrides(config *Config) {
 	}
 	if val := os.Getenv("JWT_SECRET"); val != "" {
 		config.JWT.Secret = val
-	}
-	if val := os.Getenv("FRONTEND_PATH"); val != "" {
-		config.Frontend.Path = val
 	}
 	if val := os.Getenv("ADMIN_USERNAME"); val != "" {
 		config.Admin.Username = val

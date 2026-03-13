@@ -25,27 +25,35 @@ Nebula 是一个用于分发桌面/客户端应用版本的全栈项目，后端
 
 ### 1. 准备依赖
 
-- Go 1.21+（`go.mod` 设定 1.25，使用最新稳定版即可）
-- Node.js 20+ 与 [pnpm](https://pnpm.io/)（前端）
+- Go 1.21+
 
-### 2. 配置后端
+### 2. 运行服务
 
-1. 复制并调整配置：`cp config.dev.yaml config.yaml`（Windows 可使用 `copy`）。
-2. 启动 API 服务：
-   - 开发模式：`go run ./cmd/nebula-server`
-   - 生产构建：`go build -o bin/nebula-server ./cmd/nebula-server`
-3. 默认会初始化本地 SQLite 数据库、文件存储与 JWT 认证。
-
-### 3. 启动前端
-
+**开发模式**:
 ```bash
-cd web
-pnpm install
-pnpm dev           # 开发热更新
-pnpm build         # 生产构建，产物位于 web/dist
+./scripts/dev.sh      # Linux/Mac
+.\scripts\dev.bat     # Windows
+# 或: go run ./cmd/nebula-server
 ```
 
-也可以使用 `scripts/dev.(sh|bat)`、`scripts/build.(sh|bat)`、`scripts/start.(sh|bat)` 进行一键操作。
+**生产构建**:
+```bash
+./scripts/build.sh    # Linux/Mac
+.\scripts\build.bat   # Windows
+# 产物: dist/nebula-server
+```
+
+**配置说明**:
+- 默认使用 `config.yaml` (不存在则使用代码默认值)
+- 生产环境建议通过环境变量覆盖敏感配置:
+  ```bash
+  export SERVER_MODE=prod
+  export JWT_SECRET=your-secret-key
+  export ADMIN_PASSWORD=your-password
+  ./dist/nebula-server
+  ```
+
+API 运行在 `http://localhost:9050/api`
 
 ## 📚 文档资源
 

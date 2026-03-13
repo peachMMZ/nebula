@@ -5,6 +5,7 @@ import (
 	"nebula/internal/app"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type AppHandler struct {
@@ -52,6 +53,10 @@ func (h *AppHandler) Create(c *gin.Context) {
 	}
 	err := h.service.Create(app)
 	if err != nil {
+		if err == gorm.ErrDuplicatedKey {
+			response.FailBadRequest(c, "app name already exists")
+			return
+		}
 		response.FailServer(c, err.Error())
 		return
 	}
@@ -70,6 +75,10 @@ func (h *AppHandler) Update(c *gin.Context) {
 		"description": app.Description,
 	})
 	if err != nil {
+		if err == gorm.ErrDuplicatedKey {
+			response.FailBadRequest(c, "app name already exists")
+			return
+		}
 		response.FailServer(c, err.Error())
 		return
 	}

@@ -1,0 +1,40 @@
+# Git
+.git
+.gitignore
+.github
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+dist/
+
+# 运行时文件
+uploads/
+logs/
+*.db
+*.db-shm
+*.db-wal
+
+# 文档
+*.md
+LICENSE
+
+# CI/CD
+scripts/
+
+# 临时文件
+*.log
+*.tmp
+.DS_Store
