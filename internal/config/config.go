@@ -11,7 +11,6 @@ import (
 type Config struct {
 	Server struct {
 		Address string `yaml:"address"`
-		Mode    string `yaml:"mode"` // dev, prod
 	} `yaml:"server"`
 	Database struct {
 		DSN string `yaml:"dsn"`
@@ -73,7 +72,6 @@ func getConfigFile() string {
 func loadDefaults() *Config {
 	config := &Config{}
 	config.Server.Address = ":9050"
-	config.Server.Mode = "dev"
 	config.Database.DSN = "nebula.db"
 	config.Storage.Type = "local"
 	config.Storage.BasePath = "./uploads"
@@ -89,9 +87,6 @@ func loadDefaults() *Config {
 func applyEnvOverrides(config *Config) {
 	if val := os.Getenv("SERVER_ADDRESS"); val != "" {
 		config.Server.Address = val
-	}
-	if val := os.Getenv("SERVER_MODE"); val != "" {
-		config.Server.Mode = val
 	}
 	if val := os.Getenv("DATABASE_DSN"); val != "" {
 		config.Database.DSN = val
