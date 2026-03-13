@@ -6,9 +6,6 @@ dist/
 *.so
 *.dylib
 
-# Go module files
-go.sum
-
 # Database files
 *.db
 
