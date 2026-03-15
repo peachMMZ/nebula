@@ -31,7 +31,7 @@ WORKDIR /app
 COPY --from=builder /app/nebula-server .
 
 # 复制配置文件示例
-COPY config.yaml ./config.example.yaml
+COPY config/nebula.yaml ./config/nebula.example.yaml
 
 # 创建必要的目录
 RUN mkdir -p uploads logs && \
