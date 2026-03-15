@@ -60,9 +60,9 @@ func getConfigFile() string {
 		}
 	}
 
-	// 2. 使用默认 config.yaml
-	if _, err := os.Stat("config.yaml"); err == nil {
-		return "config.yaml"
+	// 2. 使用默认 config/nebula.yaml
+	if _, err := os.Stat("config/nebula.yaml"); err == nil {
+		return "config/nebula.yaml"
 	}
 
 	// 3. 不存在配置文件，使用代码默认值
@@ -72,7 +72,7 @@ func getConfigFile() string {
 func loadDefaults() *Config {
 	config := &Config{}
 	config.Server.Address = ":9050"
-	config.Database.DSN = "nebula.db"
+	config.Database.DSN = "data/nebula.db"
 	config.Storage.Type = "local"
 	config.Storage.BasePath = "./uploads"
 	config.Storage.BaseURL = "http://localhost:9050/files"

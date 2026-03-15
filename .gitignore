@@ -1,5 +1,6 @@
 # Go build output
 dist/
+data/
 *.exe
 *.exe~
 *.dll

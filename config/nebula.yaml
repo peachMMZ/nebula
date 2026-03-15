@@ -5,7 +5,7 @@ server:
   address: ":9050"
 
 database:
-  dsn: "nebula.db"
+  dsn: "data/nebula.db"
 
 storage:
   type: "local"  # 本地存储 (未来支持: oss, s3)
