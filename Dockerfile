@@ -43,9 +43,5 @@ EXPOSE 9050
 # 挂载卷
 VOLUME ["/app/uploads", "/app/logs", "/app/data"]
 
-# 健康检查
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:9050/api/check-update || exit 1
-
 # 运行
 CMD ["./nebula-server"]
