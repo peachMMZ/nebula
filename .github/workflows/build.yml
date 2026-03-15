@@ -88,12 +88,12 @@ jobs:
             # 如果没有上一个 tag，获取所有提交
             echo "## What's Changed" > RELEASE_NOTES.md
             echo "" >> RELEASE_NOTES.md
-            git log --pretty=format:"- %s by @%an in %h" --no-merges >> RELEASE_NOTES.md
+            git log --pretty=format:"- %s (%h)" --no-merges >> RELEASE_NOTES.md
           else
             # 生成上一个 tag 到现在的变更
             echo "## What's Changed" > RELEASE_NOTES.md
             echo "" >> RELEASE_NOTES.md
-            git log --pretty=format:"- %s by @%an in %h" --no-merges ${PREVIOUS_TAG}..HEAD >> RELEASE_NOTES.md
+            git log --pretty=format:"- %s (%h)" --no-merges ${PREVIOUS_TAG}..HEAD >> RELEASE_NOTES.md
           fi
           
           echo "" >> RELEASE_NOTES.md
@@ -110,7 +110,7 @@ jobs:
         with:
           files: nebula-linux-amd64.tar.gz
           body_path: RELEASE_NOTES.md
-          generate_release_notes: true  # 同时启用 GitHub 自动生成的 release notes
+          # generate_release_notes: false  # 禁用自动生成，只使用自定义的 release notes
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
