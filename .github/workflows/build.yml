@@ -110,7 +110,7 @@ jobs:
         with:
           files: nebula-linux-amd64.tar.gz
           body_path: RELEASE_NOTES.md
-          generate_release_notes: true  # 同时启用 GitHub 自动生成的 release notes
+          # generate_release_notes: false  # 禁用自动生成，只使用自定义的 release notes
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
