@@ -7,12 +7,15 @@ import (
 	"nebula/internal/config"
 	"nebula/internal/db"
 	"nebula/internal/storage"
+	"nebula/pkg/logger"
 
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
 	cfg := config.Load()
+
+	logger.Init(gin.Mode())
 
 	database := db.Init(cfg.Database.DSN)
 
@@ -46,10 +49,13 @@ func main() {
 
 	r := gin.Default()
 
+	r.Use(logger.RequestID())
+	r.Use(logger.GinLogger())
+
 	// 注册 API 路由
 	api.RegisterRoutes(r, database, stor, jwtService, authService)
 
-	log.Printf("Server starting on %s (mode: %s)", cfg.Server.Address, cfg.Server.Mode)
+	log.Printf("Server starting on %s (mode: %s)", cfg.Server.Address, gin.Mode())
 	log.Printf("Admin username: %s", cfg.Admin.Username)
 	log.Printf("API available at http://%s/api", cfg.Server.Address)
 	r.Run(cfg.Server.Address)

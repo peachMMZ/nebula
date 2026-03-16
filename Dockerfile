@@ -31,7 +31,7 @@ WORKDIR /app
 COPY --from=builder /app/nebula-server .
 
 # 复制配置文件示例
-COPY config.yaml ./config.example.yaml
+COPY config/nebula.yaml ./config/nebula.example.yaml
 
 # 创建必要的目录
 RUN mkdir -p uploads logs && \
@@ -42,10 +42,6 @@ EXPOSE 9050
 
 # 挂载卷
 VOLUME ["/app/uploads", "/app/logs", "/app/data"]
-
-# 健康检查
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:9050/ || exit 1
 
 # 运行
 CMD ["./nebula-server"]

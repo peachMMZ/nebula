@@ -11,7 +11,6 @@ import (
 type Config struct {
 	Server struct {
 		Address string `yaml:"address"`
-		Mode    string `yaml:"mode"` // dev, prod
 	} `yaml:"server"`
 	Database struct {
 		DSN string `yaml:"dsn"`
@@ -61,9 +60,9 @@ func getConfigFile() string {
 		}
 	}
 
-	// 2. 使用默认 config.yaml
-	if _, err := os.Stat("config.yaml"); err == nil {
-		return "config.yaml"
+	// 2. 使用默认 config/nebula.yaml
+	if _, err := os.Stat("config/nebula.yaml"); err == nil {
+		return "config/nebula.yaml"
 	}
 
 	// 3. 不存在配置文件，使用代码默认值
@@ -73,8 +72,7 @@ func getConfigFile() string {
 func loadDefaults() *Config {
 	config := &Config{}
 	config.Server.Address = ":9050"
-	config.Server.Mode = "dev"
-	config.Database.DSN = "nebula.db"
+	config.Database.DSN = "data/nebula.db"
 	config.Storage.Type = "local"
 	config.Storage.BasePath = "./uploads"
 	config.Storage.BaseURL = "http://localhost:9050/files"
@@ -89,9 +87,6 @@ func loadDefaults() *Config {
 func applyEnvOverrides(config *Config) {
 	if val := os.Getenv("SERVER_ADDRESS"); val != "" {
 		config.Server.Address = val
-	}
-	if val := os.Getenv("SERVER_MODE"); val != "" {
-		config.Server.Mode = val
 	}
 	if val := os.Getenv("DATABASE_DSN"); val != "" {
 		config.Database.DSN = val

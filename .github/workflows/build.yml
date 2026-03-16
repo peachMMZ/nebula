@@ -15,11 +15,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 获取完整提交历史，用于生成 release notes
 
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: '1.25'
           cache: true
 
       - name: Build backend
@@ -30,14 +32,44 @@ jobs:
         run: |
           mkdir -p release
           cp nebula-server release/
-          cp config.yaml release/config.example.yaml
           [ -f README.md ] && cp README.md release/
+          
+          # 创建配置目录和示例配置
+          mkdir -p release/config
+          cat > release/config/nebula.example.yaml << 'EOF'
+          server:
+            address: ":9050"
+          database:
+            dsn: "data/nebula.db"
+          storage:
+            type: local
+            basePath: "./uploads"
+            baseUrl: "http://localhost:9050/files"
+          jwt:
+            secret: "change-this-secret-in-production"
+            accessTokenDuration: 7200
+            refreshTokenDuration: 604800
+          admin:
+            username: admin
+            password: "CHANGE_THIS_PASSWORD"
+          EOF
           
           # 创建启动脚本
           cat > release/start.sh << 'EOF'
           #!/bin/bash
-          [ ! -f config.yaml ] && cp config.example.yaml config.yaml
-          mkdir -p uploads logs
+          # 创建必要目录
+          mkdir -p uploads data logs config
+          
+          # 如果配置文件不存在，复制示例配置
+          if [ ! -f config/nebula.yaml ]; then
+            echo "Creating default config from example..."
+            cp config/nebula.example.yaml config/nebula.yaml
+          fi
+          
+          # 设置环境变量
+          export CONFIG_FILE=config/nebula.yaml
+          export GIN_MODE=release
+          
           ./nebula-server
           EOF
           
@@ -46,11 +78,39 @@ jobs:
           # 打包
           tar -czf nebula-linux-amd64.tar.gz -C release .
 
+      - name: Generate Release Notes
+        id: release_notes
+        run: |
+          # 获取上一个 tag
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+          
+          if [ -z "$PREVIOUS_TAG" ]; then
+            # 如果没有上一个 tag，获取所有提交
+            echo "## What's Changed" > RELEASE_NOTES.md
+            echo "" >> RELEASE_NOTES.md
+            git log --pretty=format:"- %s (%h)" --no-merges >> RELEASE_NOTES.md
+          else
+            # 生成上一个 tag 到现在的变更
+            echo "## What's Changed" > RELEASE_NOTES.md
+            echo "" >> RELEASE_NOTES.md
+            git log --pretty=format:"- %s (%h)" --no-merges ${PREVIOUS_TAG}..HEAD >> RELEASE_NOTES.md
+          fi
+          
+          echo "" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          echo "## Docker Image" >> RELEASE_NOTES.md
+          echo '```bash' >> RELEASE_NOTES.md
+          echo "docker pull ghcr.io/${{ github.repository }}:${{ github.ref_name }}" >> RELEASE_NOTES.md
+          echo '```' >> RELEASE_NOTES.md
+          
+          cat RELEASE_NOTES.md
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: nebula-linux-amd64.tar.gz
-          generate_release_notes: true
+          body_path: RELEASE_NOTES.md
+          # generate_release_notes: false  # 禁用自动生成，只使用自定义的 release notes
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -84,4 +144,3 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
-
